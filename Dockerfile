@@ -1,5 +1,5 @@
 # Base stage with build dependencies
-FROM node:22-slim AS base
+FROM node:24-slim AS base
 
 WORKDIR /app
 
@@ -22,7 +22,7 @@ ENV POSTHOG_API_KEY=$POSTHOG_API_KEY
 COPY package*.json ./
 
 # Install all dependencies (including dev dependencies for building)
-RUN npm install
+RUN npm ci
 
 # Copy source code
 COPY . .
