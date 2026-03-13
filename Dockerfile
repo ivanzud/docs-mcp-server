@@ -22,7 +22,7 @@ ENV POSTHOG_API_KEY=$POSTHOG_API_KEY
 COPY package*.json ./
 
 # Install all dependencies (including dev dependencies for building)
-RUN npm ci
+RUN npm install
 
 # Copy source code
 COPY . .
@@ -45,7 +45,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 # Copy package files and database
-COPY package*.json .
+COPY package*.json ./
 COPY db db
 
 # Copy built files from builder
