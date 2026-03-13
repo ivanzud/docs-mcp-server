@@ -67,13 +67,35 @@ export function createMcpServerInstance(
           .optional()
           .default(true)
           .describe("Follow HTTP redirects (3xx responses)."),
+        includePatterns: z
+          .array(z.string())
+          .optional()
+          .describe(
+            "URL path patterns to include (glob or /regex/). Only matching URLs are scraped.",
+          ),
+        excludePatterns: z
+          .array(z.string())
+          .optional()
+          .describe(
+            "URL path patterns to exclude (glob or /regex/). Matching URLs are skipped. Takes precedence over includePatterns.",
+          ),
       },
       {
         title: "Scrape New Library Documentation",
         destructiveHint: true, // replaces existing docs
         openWorldHint: true, // requires internet access
       },
-      async ({ url, library, version, maxPages, maxDepth, scope, followRedirects }) => {
+      async ({
+        url,
+        library,
+        version,
+        maxPages,
+        maxDepth,
+        scope,
+        followRedirects,
+        includePatterns,
+        excludePatterns,
+      }) => {
         // Track MCP tool usage
         telemetry.track(TelemetryEvent.TOOL_USED, {
           tool: "scrape_docs",
@@ -99,6 +121,8 @@ export function createMcpServerInstance(
               maxDepth,
               scope,
               followRedirects,
+              includePatterns,
+              excludePatterns,
             },
           });
 
@@ -176,9 +200,14 @@ export function createMcpServerInstance(
       '- {library: "react", query: "hooks lifecycle"} -> matches latest version of React\n' +
       '- {library: "react", version: "18.0.0", query: "hooks lifecycle"} -> matches React 18.0.0 or earlier\n' +
       '- {library: "typescript", version: "5.x", query: "ReturnType example"} -> any TypeScript 5.x.x version\n' +
-      '- {library: "typescript", version: "5.2.x", query: "ReturnType example"} -> any TypeScript 5.2.x version',
+      '- {library: "typescript", version: "5.2.x", query: "ReturnType example"} -> any TypeScript 5.2.x version\n' +
+      '- {query: "websocket"} -> searches across ALL indexed libraries',
     {
-      library: z.string().trim().describe("Library name."),
+      library: z
+        .string()
+        .trim()
+        .optional()
+        .describe("Library name. Omit to search across all indexed libraries."),
       version: z
         .string()
         .trim()

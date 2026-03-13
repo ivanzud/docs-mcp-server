@@ -5,7 +5,7 @@ import { logger } from "../utils/logger";
 import { ValidationError } from "./errors";
 
 export interface SearchToolOptions {
-  library: string;
+  library?: string;
   version?: string;
   query: string;
   limit?: number;
@@ -42,14 +42,6 @@ export class SearchTool {
   async execute(options: SearchToolOptions): Promise<SearchToolResult> {
     const { library, version, query, limit = 5, exactMatch = false } = options;
 
-    // Validate required inputs
-    if (!library || typeof library !== "string" || library.trim() === "") {
-      throw new ValidationError(
-        "Library name is required and must be a non-empty string.",
-        this.constructor.name,
-      );
-    }
-
     if (!query || typeof query !== "string" || query.trim() === "") {
       throw new ValidationError(
         "Query is required and must be a non-empty string.",
@@ -62,6 +54,11 @@ export class SearchTool {
         "Limit must be a number between 1 and 100.",
         this.constructor.name,
       );
+    }
+
+    // Cross-library search: when library is omitted, search all indexed libraries
+    if (!library || library.trim() === "") {
+      return this.searchAllLibraries(query, version, limit, exactMatch);
     }
 
     // When exactMatch is true, version must be specified and not 'latest'
@@ -125,5 +122,58 @@ export class SearchTool {
       );
       throw error;
     }
+  }
+
+  /**
+   * Search across all indexed libraries when no specific library is provided.
+   * Merges results from all libraries, sorted by relevance score, capped at limit.
+   */
+  private async searchAllLibraries(
+    query: string,
+    version: string | undefined,
+    limit: number,
+    exactMatch: boolean,
+  ): Promise<SearchToolResult> {
+    logger.info(`🔍 Cross-library search for: ${query}`);
+
+    const allLibraries = await this.docService.listLibraries();
+    if (allLibraries.length === 0) {
+      return { results: [] };
+    }
+
+    const allResults: StoreSearchResult[] = [];
+    for (const lib of allLibraries) {
+      try {
+        let versionToSearch: string | null | undefined = version || "latest";
+
+        if (!exactMatch) {
+          const versionResult = await this.docService.findBestVersion(
+            lib.library,
+            version,
+          );
+          versionToSearch = versionResult.bestMatch;
+        }
+
+        const results = await this.docService.searchStore(
+          lib.library,
+          versionToSearch,
+          query,
+          limit,
+        );
+        allResults.push(...results);
+      } catch {
+        // Skip libraries that fail (e.g., no matching version)
+        logger.debug(`Skipping library ${lib.library} during cross-library search`);
+      }
+    }
+
+    // Sort by score descending and cap at limit
+    allResults.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    const capped = allResults.slice(0, limit);
+
+    logger.info(
+      `✅ Cross-library search found ${capped.length} results from ${allLibraries.length} libraries`,
+    );
+    return { results: capped };
   }
 }

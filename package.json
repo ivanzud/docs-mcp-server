@@ -57,7 +57,7 @@
     "@langchain/google-vertexai": "^2.1.7",
     "@langchain/openai": "^1.2.1",
     "@langchain/textsplitters": "^1.0.1",
-    "@modelcontextprotocol/sdk": "^1.25.3",
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "@trpc/client": "^11.8.1",
     "@trpc/server": "^11.4.4",
     "@types/yargs": "^17.0.35",

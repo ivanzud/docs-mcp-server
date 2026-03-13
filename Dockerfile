@@ -37,10 +37,11 @@ FROM base AS production
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
 
-# Install Chromium from apt-get
+# Install Chromium and curl (for healthcheck) from apt-get
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
   chromium \
+  curl \
   && rm -rf /var/lib/apt/lists/*
 
 # Copy package files and database
@@ -64,6 +65,10 @@ VOLUME /config
 EXPOSE 6280
 ENV PORT=6280
 ENV HOST=0.0.0.0
+
+# Healthcheck: verify the HTTP endpoint is responsive
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD curl -fsS http://localhost:${PORT:-6280}/ > /dev/null || exit 1
 
 # Set the command to run the application
 ENTRYPOINT ["node", "--enable-source-maps", "dist/index.js"]
